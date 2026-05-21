@@ -1,5 +1,5 @@
-# Mtech-ECE-Project-
-Mtech ECE at Sastra university 
+
+## TESTING PROJECT 
 
 Good, this is a useful concrete task. Before I write the code, one important honest note about 4 K simulation in Sentaurus that will save you debugging time:
 
