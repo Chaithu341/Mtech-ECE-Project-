@@ -1,0 +1,159 @@
+#======================================================================#
+#  models.par - Material parameters for GaN/AlGaN/AlN/SiC HEMT
+#  Tuned for cryogenic (4 K) AlGaN/GaN HEMT simulation
+#
+#  IMPORTANT: These values are starting points from literature. Calibrate
+#  against your measured data. Values marked with [CHECK] are areas where
+#  the published spread is wide.
+#======================================================================#
+
+Material = "GaN" {
+
+  # --- Bandgap (Varshni, valid down to ~0 K) -------------------------
+  Bandgap {
+    Chi0     = 4.10           # electron affinity [eV]
+    Bgn2Chi  = 0.0
+    Eg0      = 3.51           # Eg at 0 K [eV]   [CHECK: literature 3.47-3.51]
+    alpha    = 9.09e-4        # Varshni alpha [eV/K]
+    beta     = 830            # Varshni beta  [K]
+    # Eg(T) = Eg0 - alpha*T^2 / (T + beta)
+    # At T=4 K -> Eg ~ 3.510 eV (negligible shift from 0 K)
+  }
+
+  # --- Effective masses & density of states -------------------------
+  eDOSMass {
+    Formula = 2
+    mt      = 0.20            # transverse [m0]
+    ml      = 0.20            # longitudinal
+    Nv      = 1               # valley degeneracy
+  }
+  hDOSMass {
+    a       = 1.4             # heavy-hole effective mass [m0]
+  }
+
+  # --- Permittivity --------------------------------------------------
+  Epsilon {
+    epsilon = 9.5             # static, parallel to c-axis
+  }
+
+  # --- Spontaneous polarization -------------------------------------
+  Piezoelectric_Polarization {
+    Psp     = -0.029          # [C/m^2]  spontaneous polarization
+  }
+
+  # --- Mobility (constant model - tuned for 4 K bulk GaN) -----------
+  # Bulk GaN at 4 K: mu_e ~ 800-2000 cm2/V-s (heavily doping-dependent)
+  # 2DEG at AlGaN/GaN at 4 K: mu_e ~ 1e4-1e5 cm2/V-s (interface-dependent)
+  # The 2DEG mobility enhancement is handled by the device geometry,
+  # not by this bulk parameter.
+  ConstantMobility {
+    mumax_e = 1500            # electron [cm2/V-s] at 4 K [CHECK]
+    mumax_h = 30              # hole [cm2/V-s] at 4 K [CHECK]
+    Exponent_e = 0            # no T-dependence for constant model
+    Exponent_h = 0
+  }
+
+  # --- SRH lifetimes (long at low T) --------------------------------
+  Scharfetter * SRH {
+    taumin_e = 1e-9
+    taumax_e = 1e-7
+    taumin_h = 1e-9
+    taumax_h = 1e-7
+  }
+
+  # --- Incomplete ionization (carrier freeze-out at 4 K) ------------
+  # GaN donors (Si): EA ~ 17 meV; acceptors (Mg): EA ~ 170-200 meV
+  # At 4 K, Mg is virtually frozen; Si is partially frozen.
+  IncompleteIonization {
+    Ed       = 0.017          # donor activation [eV]
+    Ea       = 0.170          # acceptor activation [eV]
+    gD       = 2              # degeneracy factor donors
+    gA       = 4              # degeneracy factor acceptors
+    Xsec_e   = 1e-15
+    Xsec_h   = 1e-15
+  }
+
+  # --- Affinity, refractive index (defaults usually OK) -------------
+}
+
+#======================================================================#
+Material = "AlGaN" {
+
+  # AlGaN parameters interpolated by mole fraction x (Vegard's law for
+  # most quantities, bowing for Eg). Sentaurus does this automatically
+  # if you provide endpoints in the AlN material and inherit from GaN.
+
+  Bandgap {
+    Chi0     = 4.10           # average; varies with x
+    Bgn2Chi  = 0.0
+    Eg0      = 3.51           # Will be modified by xMoleFraction
+    alpha    = 9.09e-4
+    beta     = 830
+    # Bowing parameter for AlGaN: Eg(x) = (1-x)*Eg_GaN + x*Eg_AlN - b*x*(1-x)
+    # with b = 1.0 eV
+    Bandgap_bowing = 1.0
+  }
+
+  Epsilon {
+    epsilon = 9.5             # weakly x-dependent
+  }
+
+  Piezoelectric_Polarization {
+    Psp = -0.052              # spontaneous (for x~0.25); auto-interpolates
+    # piezoelectric constants e31, e33, elastic c13, c33, lattice a, a0
+    # taken from Ambacher 1999 - usually fine to leave defaults.
+  }
+
+  ConstantMobility {
+    mumax_e = 200             # AlGaN bulk mobility lower than GaN
+    mumax_h = 10
+  }
+
+  IncompleteIonization {
+    Ed   = 0.025              # donors deeper in AlGaN
+    Ea   = 0.250              # acceptors much deeper
+    gD   = 2
+    gA   = 4
+  }
+}
+
+#======================================================================#
+Material = "AlN" {
+
+  Bandgap {
+    Chi0  = 1.90
+    Eg0   = 6.25
+    alpha = 1.799e-3
+    beta  = 1462
+  }
+
+  Epsilon {
+    epsilon = 8.5
+  }
+
+  ConstantMobility {
+    mumax_e = 100
+    mumax_h = 10
+  }
+}
+
+#======================================================================#
+Material = "SiC" {
+  # 4H-SiC parameters - substrate, only needs to be electrically inert here
+
+  Bandgap {
+    Chi0  = 3.7
+    Eg0   = 3.265             # 4H-SiC at 0 K
+    alpha = 6.5e-4
+    beta  = 1300
+  }
+
+  Epsilon {
+    epsilon = 9.7
+  }
+
+  ConstantMobility {
+    mumax_e = 100             # we don't care - SiC is semi-insulating substrate here
+    mumax_h = 10
+  }
+}
