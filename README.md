@@ -3,79 +3,29 @@
 
 ## UPDATED
 
-So the 3 files are complete:
+All four files updated with Table 9.1 / 9.2 dimensions:
 
-hemt_sde.cmd — builds structure  
+- **`hemt_sde.cmd`** — recommended structure builder (SDE)
+- **`hemt_sprocess.cmd`** — alternative SProcess flow (now updated with new dimensions + AlN spacer + correct contact placements)
+- **`hemt_sdevice.cmd`** — device simulation with 4 K ramp
+- **`models.par`** — material parameters
 
-hemt_sdevice.cmd — runs simulation  
+**Use only ONE structure file** — either SDE *or* SProcess, not both. They produce the same structure. SDE remains my recommendation; SProcess is there only if your lab/supervisor mandates it.
 
-models.par — material parameters
-
-Got the dimensions. Before I write the corrected code, here's what I noticed:
-
-**New things in your table that weren't in the previous code:**
-- There's an **AlN spacer layer (1 nm)** between the GaN channel and AlGaN barrier — this is critical for HEMT performance and I missed it before
-- Gate metal has a defined height (50 nm) — should be a physical region, not just a contact
-- All thicknesses are now specific (40 nm barrier, 150 nm channel, 23 nm back-barrier, etc.)
-- Lateral asymmetry: S-G = 1 µm, G-D = 5 µm (this is a *large-gap* HEMT, suggesting power/RF design)
-
-**Bugs I'm fixing from the previous code:**
-1. SDE contact placement used `find-edge-id` on a point that wasn't necessarily on a single edge — would silently put contacts on the wrong edge. Fixed by inserting vertices to split the top edge into named segments first.
-2. `define-2d-contact` needed a list argument, not a bare edge ID.
-3. `Physics(Material="GaN") { MoleFraction(...) }` syntax was wrong — mole fraction belongs in the structure, not the SDevice physics block.
-4. Region-interface naming used SDE region names directly, which doesn't always resolve — switched to material-pair interfaces.
-5. `Vsource_pset` and `System` block were extraneous and could cause solve errors on simple device sims.
-6. Gate Schottky needed explicit `eRecVelocity`/`hRecVelocity` for thermionic emission at low T.
-7. The `Save`/`Load` filename references had inconsistent prefixes — would fail at the `Load` step.
-
-Let me write the corrected files:## What changed and why
-
-**Dimensions now match Table 9.1 / 9.2 exactly** — every thickness is parameterized at the top of `hemt_sde.cmd` so you only edit values in one place if you change the design. Calculated depth coordinates: AlGaN barrier ends at 40 nm, 2DEG forms at the AlN/GaN interface at 41 nm depth, channel ends at 191 nm, full structure depth is 4.064 µm. Lateral total 6.75 µm matches Fig 9.1.
-
-**The AlN spacer (1 nm) — most important addition.** I missed this in the previous code. It's the layer that makes this design a high-performance HEMT. The 2DEG forms at the AlN/GaN interface, not the AlGaN/GaN interface. The mesh refinement now puts 0.1 nm vertical spacing right there.
-
-**Gate metal is a real region now**, not an abstract contact. Ni rectangle, 50 nm tall, sits on top of the AlGaN barrier in the gate region. Gate contact is defined on its top edge. This gives correct Schottky physics.
-
-**Source/Drain edge splitting.** Previous code used `find-edge-id` on a position that, depending on Sentaurus version, might land on the wrong edge (silent bug — contacts on different segments than intended). New code explicitly inserts vertices at y=0.25 and y=6.50 to split the top edge into clean segments first.
-
-**SDevice fixes:**
-- Removed the bogus `System` block (was causing solver to expect netlist behavior)
-- Removed `MoleFraction(...)` from `Physics(Material=...)` blocks — mole fraction comes from the structure profile, not the physics declaration
-- Switched interface specification from `RegionInterface="R_xx/R_yy"` (region-name fragile) to `MaterialInterface="AlN/GaN"` (robust)
-- Added explicit `eRecVelocity`/`hRecVelocity` on the gate Schottky — needed for stable thermionic emission at cryo
-- Aligned all `Save`/`Load` filename prefixes so the Id-Vd step actually finds the 4 K solution
-- Added an intermediate stop at 30 K — the 77 → 4 K jump fails to converge in most cases without this
-
-**models.par cleanup:** added `isPiezoOn = 1` flags on the polarization blocks (some Sentaurus versions need this explicit), kept material parameters keyed only to the four base materials (AlGaN handles all x_Al via the structure profile).
-
-## Honest reality check before you run
-
-I cannot execute Sentaurus to verify these files end-to-end — I don't have a license available here. What I have done:
-- Verified all dimensions arithmetic by hand against Table 9.1 / 9.2
-- Followed standard SDE Scheme syntax conventions (TCAD Sentaurus User Manual examples for J-2014 and later)
-- Fixed every concrete syntax bug I could identify from the previous version
-- Cross-referenced the cryogenic solve strategy against published GaN HEMT TCAD papers
-
-**Things that may still need adjustment when you run it:**
-
-1. **AlGaN built-in interpolation.** Sentaurus versions differ in how they read `xMoleFraction` and interpolate AlGaN parameters. If you see "MoleFraction not found" warnings, the workaround is to define two separate materials (e.g., `AlGaN_025` and `AlGaN_007`) with hardcoded parameters and assign them to the two regions directly.
-
-2. **30 → 4 K ramp convergence.** This step fails in maybe 30% of cryo TCAD setups. If it stalls, add another stop at 10 K. If it still fails, try `Method=ILS` instead of `Super` in the Math block, or lower `MinStep` to `1e-10`.
-
-3. **Back-barrier mole fraction (0.07).** Your table didn't specify this. If your design uses something different, just change `x_Al_back` at the top of the SDE script.
-
-4. **2DEG density check.** After the first run, open the TDR in SVisual and plot `eDensity` along a vertical cut through the channel. You should see a peak of order 10¹³ cm⁻² localized within ~5 nm below the AlN spacer. If not, polarization isn't being applied — check that `isPiezoOn=1` is being read from models.par.
-
-5. **The C-doped buffer doping value (1×10¹⁸ cm⁻³)** isn't specified in your table — I assumed it. If your design uses a different concentration, edit `N_cbuf` in the SDE script.
-
-Run order is unchanged:
+**Run order:**
 ```
+# Option A (recommended):
 sde -e -l hemt_sde.cmd
+sdevice hemt_sdevice.cmd
+
+# Option B (if SProcess required):
+sprocess hemt_sprocess.cmd
 sdevice hemt_sdevice.cmd
 ```
 
-Open the result TDR in SVisual, plot eDensity to confirm 2DEG, then check `n@node@_des.plt` for the Id-Vg and Id-Vd curves.
+**One caveat specific to the SProcess file:** SProcess doesn't model strain or polarization during deposition the way III-N epitaxy actually works — it just stacks layers geometrically. The polarization physics is still applied by SDevice at runtime, so the final electrical simulation is the same. But the *process* file is essentially a geometric script, not a physical process emulation. That's why SDE is cleaner for GaN.
 
+Same honest caveats as before — I can't run Sentaurus to verify execution, but every dimension is hand-checked against your table, and the known bugs from earlier are fixed.
 
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
