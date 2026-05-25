@@ -1,0 +1,153 @@
+#======================================================================#
+#  models.par - Material parameters for AlGaN/GaN HEMT at 4 K
+#  Designed for the layer stack from Table 9.1 / 9.2.
+#
+#  Values labeled [CHECK] are areas where published literature has wide
+#  spread or the right value depends on your growth/process. Calibrate
+#  against measured data when available.
+#======================================================================#
+
+Material = "GaN" {
+
+  Bandgap {
+    Chi0     = 4.10           ;# electron affinity [eV]
+    Bgn2Chi  = 0.5
+    Eg0      = 3.510          ;# Eg at 0 K [eV]
+    alpha    = 9.09e-4        ;# Varshni alpha
+    beta     = 830            ;# Varshni beta
+  }
+
+  eDOSMass {
+    Formula = 2
+    mt      = 0.20
+    ml      = 0.20
+    Nv      = 1
+  }
+  hDOSMass {
+    a       = 1.4
+  }
+
+  Epsilon {
+    epsilon = 9.5
+  }
+
+  Piezoelectric_Polarization {
+    Psp      = -0.029         ;# C/m^2  spontaneous polarization
+    isPiezoOn = 1
+  }
+
+  # ConstantMobility at 4 K - heavily doping dependent in literature.
+  # 2DEG mobility (1e4 - 1e5 cm2/V-s) is NOT set here; it emerges from
+  # device geometry + low scattering in the undoped channel.
+  ConstantMobility {
+    mumax_e = 1500            ;# bulk GaN, low-doped, 4 K
+    mumax_h = 30
+    Exponent_e = 0
+    Exponent_h = 0
+  }
+
+  Scharfetter * SRH {
+    taumin_e = 1e-9
+    taumax_e = 1e-7
+    taumin_h = 1e-9
+    taumax_h = 1e-7
+  }
+
+  # Incomplete ionization
+  # Si donor in GaN: Ed ~ 17 meV  (frozen below ~30 K)
+  # Mg acceptor:     Ea ~ 170 meV (frozen below 200 K)
+  IncompleteIonization {
+    Ed       = 0.017
+    Ea       = 0.170
+    gD       = 2
+    gA       = 4
+    Xsec_e   = 1e-15
+    Xsec_h   = 1e-15
+  }
+}
+
+#======================================================================#
+Material = "AlGaN" {
+  # Parameters as function of x_Al, interpolated automatically by
+  # Sentaurus when the structure carries an xMoleFraction profile.
+
+  Bandgap {
+    Chi0     = 4.10
+    Bgn2Chi  = 0.5
+    Eg0      = 3.510
+    alpha    = 9.09e-4
+    beta     = 830
+    # Eg(AlGaN) = (1-x)*Eg(GaN) + x*Eg(AlN) - b*x*(1-x), b ~ 1.0 eV
+    Bandgap_bowing = 1.0
+  }
+
+  Epsilon {
+    epsilon = 9.5
+  }
+
+  Piezoelectric_Polarization {
+    Psp = -0.052              ;# nominal value for x ~ 0.25
+    isPiezoOn = 1
+  }
+
+  ConstantMobility {
+    mumax_e = 200
+    mumax_h = 10
+  }
+
+  IncompleteIonization {
+    Ed   = 0.025
+    Ea   = 0.250
+    gD   = 2
+    gA   = 4
+  }
+}
+
+#======================================================================#
+Material = "AlN" {
+  # AlN is used in TWO places: nucleation (100 nm) and spacer (1 nm).
+  # Same material parameters apply.
+
+  Bandgap {
+    Chi0  = 1.90
+    Eg0   = 6.25
+    alpha = 1.799e-3
+    beta  = 1462
+  }
+
+  Epsilon {
+    epsilon = 8.5
+  }
+
+  Piezoelectric_Polarization {
+    Psp      = -0.090
+    isPiezoOn = 1
+  }
+
+  ConstantMobility {
+    mumax_e = 100
+    mumax_h = 10
+  }
+}
+
+#======================================================================#
+Material = "SiC" {
+  # 4H-SiC substrate (semi-insulating in real device; here we use
+  # very light n-type doping just to avoid solver issues)
+
+  Bandgap {
+    Chi0  = 3.7
+    Eg0   = 3.265
+    alpha = 6.5e-4
+    beta  = 1300
+  }
+
+  Epsilon {
+    epsilon = 9.7
+  }
+
+  ConstantMobility {
+    mumax_e = 100
+    mumax_h = 10
+  }
+}
