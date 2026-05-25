@@ -5,8 +5,10 @@
 
 So the 3 files are complete:
 
-hemt_sde.cmd — builds structure
-hemt_sdevice.cmd — runs simulation
+hemt_sde.cmd — builds structure  
+
+hemt_sdevice.cmd — runs simulation  
+
 models.par — material parameters
 
 Got the dimensions. Before I write the corrected code, here's what I noticed:
