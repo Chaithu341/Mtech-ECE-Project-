@@ -1,0 +1,81 @@
+#======================================================================#
+#  models.par - Material parameters for cryogenic AlGaN/GaN MOS-HEMT
+#  Sentaurus T-2022.03 compatible
+#======================================================================#
+
+Material = "GaN" {
+  Bandgap {
+    Chi0    = 4.10
+    Bgn2Chi = 0.5
+    Eg0     = 3.510
+    alpha   = 9.09e-4
+    beta    = 830
+  }
+  eDOSMass { Formula = 2  mt = 0.20  ml = 0.20  Nv = 1 }
+  hDOSMass { a = 1.4 }
+  Epsilon  { epsilon = 9.5 }
+  Piezoelectric_Polarization { Psp = -0.029  isPiezoOn = 1 }
+  ConstantMobility {
+    mumax_e = 1500  mumax_h = 30
+  }
+  Scharfetter * SRH {
+    taumin_e = 1e-9  taumax_e = 1e-7
+    taumin_h = 1e-9  taumax_h = 1e-7
+  }
+  IncompleteIonization {
+    Ed = 0.017
+    Ea = 0.170
+    gD = 2  gA = 4
+    Xsec_e = 1e-15   Xsec_h = 1e-15
+  }
+}
+
+Material = "AlGaN" {
+  Bandgap {
+    Chi0    = 4.10
+    Bgn2Chi = 0.5
+    Eg0     = 3.510
+    alpha   = 9.09e-4
+    beta    = 830
+    Bandgap_bowing = 1.0
+  }
+  Epsilon { epsilon = 9.5 }
+  Piezoelectric_Polarization { Psp = -0.052  isPiezoOn = 1 }
+  ConstantMobility { mumax_e = 200  mumax_h = 10 }
+  IncompleteIonization {
+    Ed = 0.025  Ea = 0.250  gD = 2  gA = 4
+  }
+}
+
+Material = "AlN" {
+  Bandgap {
+    Chi0  = 1.90
+    Eg0   = 6.25
+    alpha = 1.799e-3
+    beta  = 1462
+  }
+  Epsilon { epsilon = 8.5 }
+  Piezoelectric_Polarization { Psp = -0.090  isPiezoOn = 1 }
+  ConstantMobility { mumax_e = 100  mumax_h = 10 }
+}
+
+Material = "SiC" {
+  Bandgap {
+    Chi0  = 3.70
+    Eg0   = 3.265
+    alpha = 6.5e-4
+    beta  = 1300
+  }
+  Epsilon { epsilon = 9.7 }
+  ConstantMobility { mumax_e = 100  mumax_h = 10 }
+}
+
+Material = "Aluminum2O3" {
+  Epsilon { epsilon = 9.0 }
+  Bandgap { Chi0 = 1.35  Eg0 = 8.8  alpha = 0  beta = 1000 }
+}
+
+Material = "HfO2" {
+  Epsilon { epsilon = 22.0 }
+  Bandgap { Chi0 = 2.05  Eg0 = 5.8  alpha = 0  beta = 1000 }
+}
