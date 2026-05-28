@@ -1,32 +1,135 @@
 
 ## TESTING PROJECT 
 
-## UPDATED
+## UPDATED - V2
 
-All four files updated with Table 9.1 / 9.2 dimensions:
+STEP 1 — Set up your work directory
+Open a terminal on your Linux machine where Sentaurus T-2022.03 is installed. Then:
+bash# 1. Create a clean working directory
+mkdir -p ~/work/moshemt_cryo
+cd ~/work/moshemt_cryo
 
-- **`hemt_sde.cmd`** — recommended structure builder (SDE)
-- **`hemt_sprocess.cmd`** — alternative SProcess flow (now updated with new dimensions + AlN spacer + correct contact placements)
-- **`hemt_sdevice.cmd`** — device simulation with 4 K ramp
-- **`models.par`** — material parameters
+# 2. Verify Sentaurus is available (you should see /path/to/T-2022.03)
+which sde
+which sdevice
+which swb
+If those commands show "not found", run your Sentaurus environment script first (something like source /opt/synopsys/sentaurus_setup.sh — your sysadmin will know the exact path).
+STEP 2 — Place the three files
+Copy the three downloaded files into ~/work/moshemt_cryo/ so the directory looks like this:
+~/work/moshemt_cryo/
+├── moshemt_sde.cmd
+├── moshemt_sdevice.cmd
+└── models.par
+That's it. No subdirectories needed.
+STEP 3 — Choose how to run: Workbench OR command-line
+Option A — Sentaurus Workbench (recommended, easier)
+bashcd ~/work/moshemt_cryo
+swb &
+In the SWB window:
 
-**Use only ONE structure file** — either SDE *or* SProcess, not both. They produce the same structure. SDE remains my recommendation; SProcess is there only if your lab/supervisor mandates it.
+File → New → Project → name it moshemt_cryo, save it in ~/work/.
+In the Tool Bar on the left, find and drag two tools into your project flow:
 
-**Run order:**
-```
-# Option A (recommended):
-sde -e -l hemt_sde.cmd
-sdevice hemt_sdevice.cmd
+sde (Sentaurus Structure Editor)
+sdevice (Sentaurus Device)
 
-# Option B (if SProcess required):
-sprocess hemt_sprocess.cmd
-sdevice hemt_sdevice.cmd
-```
 
-**One caveat specific to the SProcess file:** SProcess doesn't model strain or polarization during deposition the way III-N epitaxy actually works — it just stacks layers geometrically. The polarization physics is still applied by SDevice at runtime, so the final electrical simulation is the same. But the *process* file is essentially a geometric script, not a physical process emulation. That's why SDE is cleaner for GaN.
+Right-click the sde tool node → Edit Input → paste contents of moshemt_sde.cmd. Save.
+Right-click the sdevice tool node → Edit Input → paste contents of moshemt_sdevice.cmd. Save.
+Make sure models.par is in the project directory (copy it there if SWB created a subdirectory).
+Right-click the project node → Run All (or right-click sdevice → Run if SDE already ran).
+Watch progress in the bottom log pane. Each tool node turns green when complete.
 
-Same honest caveats as before — I can't run Sentaurus to verify execution, but every dimension is hand-checked against your table, and the known bugs from earlier are fixed.
+Expected runtime on a modern 8-core machine:
 
+SDE: 30 seconds – 2 minutes
+SDevice: 45 minutes to 3 hours depending on whether the 20 K convergence is clean
+
+Option B — Command line (without SWB)
+You need to manually substitute n@node@ and @tdr@ since SWB token expansion isn't happening.
+bashcd ~/work/moshemt_cryo
+
+# 1. Replace @node@ placeholders with literal "n0" in SDE file
+sed -i 's/n@node@/n0/g' moshemt_sde.cmd
+
+# 2. Run SDE - builds the structure and mesh
+sde -e -l moshemt_sde.cmd
+
+# After this, you should see: n0_msh.tdr, n0_msh.grd, n0_msh.dat
+
+# 3. Patch SDevice to use the actual mesh filename
+sed -i 's/n@node@/n0/g' moshemt_sdevice.cmd
+sed -i 's/"@tdr@"/"n0_msh.tdr"/g' moshemt_sdevice.cmd
+
+# 4. Run SDevice
+sdevice moshemt_sdevice.cmd
+STEP 4 — Check that each stage completed
+After the run, check the log file:
+bashtail -30 n0_des.log     # last 30 lines should say "End of simulation"
+Look for these milestone messages in the log:
+init_300K_  ...  Convergence reached      ← Step 1 done
+ramp_300_77_ ... Convergence reached      ← Step 2 done
+ramp_77_30_  ... Convergence reached      ← Step 3 done
+ramp_30_20_  ... Convergence reached      ← Step 4 done (HARDEST)
+CV_20K_     ...  Convergence reached      ← Step 5 done
+Cf_20K_     ...  Convergence reached      ← Step 6 done
+IdVg_20K_   ...  Convergence reached      ← Step 7 done
+If it fails at any stage, the log shows the last attempted step. See troubleshooting below.
+STEP 5 — View the results
+You have three result files to inspect:
+5a. Structure and band diagrams → SVisual
+bashsvisual n0_des.tdr &
+In SVisual:
+
+Left panel → Materials → toggle visibility of layers
+Plot → Add 2D Plot → eDensity → you should see a bright stripe at the AlN/GaN interface (the 2DEG)
+Tools → Cutline → Vertical cut at y=2.5 µm → plot ConductionBandEnergy vs depth → you'll see the conduction-band notch where the 2DEG sits
+
+5b. Id-Vg and C-V curves → Inspect
+bashinspect n0_des.plt &
+In Inspect:
+
+Curve → New → X axis: gate OuterVoltage → Y axis: drain TotalCurrent → this is your Id-Vg at 20 K
+For C-V: X axis: gate OuterVoltage → Y axis: gate gate Capacitance → C-V at 1 MHz, 20 K
+
+5c. C-f (frequency vs Capacitance) → Inspect
+bashinspect n0_ac.plt &
+# or it might be embedded in n0_des.plt; try both
+
+X axis: Frequency → Y axis: gate gate Capacitance → this is your C-f curve at 20 K, Vg = 0
+Set the X axis to log scale (right-click axis → Logarithmic) to span 1 kHz to 1 GHz
+
+STEP 6 — Common errors and exact fixes
+Error in log fileMeaningExact fixMaterial "Aluminum2O3" not foundYour install uses Al2O3In moshemt_sde.cmd and models.par: change all "Aluminum2O3" to "Al2O3". Also change MaterialInterface in SDevice.Material "HfO2" not foundOlder installChange to "HafniumOxide" everywhereCannot find edge near position ...Mesh didn't reach that depthOpen SDE structure in SVisual, verify y/d coordinates of the contact match a real edge. Increase mesh density.Convergence failure at T=27.5 (during 30 → 20 K ramp)Most common cryo problemIn SDevice, add an intermediate stop. Find the ramp_30_20_ block and split it: first ramp to 25 K, then to 20 K, with InitialStep=0.005 for the second leg.Quasistationary not converged at gate voltage 0.3 VThreshold region instabilityReduce MaxStep from 0.02 to 0.005 in the Id-Vg sweep blockxMoleFraction undefined warningAlGaN parameter resolutionAdd MoleFraction explicit to the AlGaN constant profile region. If still fails, hardcode AlGaN parameters by creating a new material AlGaN025 in models.par and using it in SDE.Singular JacobianNumerical breakdownIn Math block, change Method = Blocked to Method = ILS; usually resolves itLicense checkout failedSynopsys licensingNot your code — talk to sysadmincommand not found: sdeEnvironment not loadedSource your Sentaurus setup script
+STEP 7 — If the 30 K → 20 K ramp fails (the most common case)
+This is the cryogenic crisis point. If it fails, replace the existing ramp_30_20_ block in moshemt_sdevice.cmd with this two-step version:
+   #----- 4a. 30 -> 25 K ---------------------------------------------
+   NewCurrentPrefix = "ramp_30_25_"
+   Quasistationary (
+      InitialStep=0.01 MinStep=1e-8 MaxStep=0.05
+      Goal { Parameter=Temperature Value=25 }
+   ) {
+      Coupled (Iterations=400) { Poisson Electron Hole }
+   }
+   Save (FilePrefix = "n@node@_25K")
+
+   #----- 4b. 25 -> 20 K ---------------------------------------------
+   NewCurrentPrefix = "ramp_25_20_"
+   Quasistationary (
+      InitialStep=0.005 MinStep=1e-10 MaxStep=0.02
+      Goal { Parameter=Temperature Value=20 }
+   ) {
+      Coupled (Iterations=500) { Poisson Electron Hole }
+   }
+   Save (FilePrefix = "n@node@_20K")
+STEP 8 — Expected results sanity check
+When everything runs successfully, your results should show:
+QuantityExpected range at 20 K2DEG density (peak eDensity)10¹² – 10¹³ cm⁻²Threshold voltage (Id-Vg)between −5 V and −2 VMax gate capacitance (C-V)5–15 fF/µm (per gate length)C(1 MHz) / C(1 kHz) ratio0.7 – 1.0 (lower ratio means more trap response)Id at Vg=0, Vd=0.1 V0.1 – 10 mA/mm
+If results are wildly different (e.g., zero current everywhere, or capacitance is 0), the most likely cause is that polarization wasn't applied. Open the TDR in SVisual and plot PE_Polarization — it should be nonzero in AlGaN and AlN regions.
+
+Honest closing note
+I've been careful with syntax, but I cannot run Sentaurus to verify these files actually execute on your machine. Different Sentaurus installs have different default material lists, different datexcodes.txt content, and different licensing of advanced features. The fixes above cover the most likely issues; if you hit an error not in my troubleshooting table, paste the exact error message from the log file and I can pinpoint the fix.
+Cryogenic GaN TCAD is genuinely difficult — even published papers usually mention "convergence assisted by parameter tuning." Be patient with the 30 → 20 K step, and don't be discouraged if it takes two or three iterations to get there.
 ## -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Good, this is a useful concrete task. Before I write the code, one important honest note about 4 K simulation in Sentaurus that will save you debugging time:
