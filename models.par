@@ -1,6 +1,7 @@
 #======================================================================#
-#  models.par - Material parameters for cryogenic AlGaN/GaN MOS-HEMT
-#  Sentaurus T-2022.03 compatible
+#  models.par - Materials for AlGaN/GaN MIS-HEMT comparison (T-2022.03)
+#  Covers: GaN, AlGaN, AlN, SiC, Aluminum2O3 (Al2O3), HfO2
+#  Values are literature starting points; calibrate to your data.
 #======================================================================#
 
 Material = "GaN" {
@@ -15,18 +16,14 @@ Material = "GaN" {
   hDOSMass { a = 1.4 }
   Epsilon  { epsilon = 9.5 }
   Piezoelectric_Polarization { Psp = -0.029  isPiezoOn = 1 }
-  ConstantMobility {
-    mumax_e = 1500  mumax_h = 30
-  }
+  ConstantMobility { mumax_e = 1500  mumax_h = 30 }
   Scharfetter * SRH {
     taumin_e = 1e-9  taumax_e = 1e-7
     taumin_h = 1e-9  taumax_h = 1e-7
   }
   IncompleteIonization {
-    Ed = 0.017
-    Ea = 0.170
-    gD = 2  gA = 4
-    Xsec_e = 1e-15   Xsec_h = 1e-15
+    Ed = 0.017  Ea = 0.170  gD = 2  gA = 4
+    Xsec_e = 1e-15  Xsec_h = 1e-15
   }
 }
 
@@ -42,9 +39,7 @@ Material = "AlGaN" {
   Epsilon { epsilon = 9.5 }
   Piezoelectric_Polarization { Psp = -0.052  isPiezoOn = 1 }
   ConstantMobility { mumax_e = 200  mumax_h = 10 }
-  IncompleteIonization {
-    Ed = 0.025  Ea = 0.250  gD = 2  gA = 4
-  }
+  IncompleteIonization { Ed = 0.025  Ea = 0.250  gD = 2  gA = 4 }
 }
 
 Material = "AlN" {
